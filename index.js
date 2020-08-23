@@ -1,16 +1,24 @@
 const path = require('path');
 const fs = require('fs');
 const Watcher = require('./watcher.js');
+const errorHandler = require('./utils/errorHendler.js');
+const program = require('./utils/commander.js');
 
-const oldDirectory = process.argv[2] ? path.join(__dirname, process.argv[2]) : path.join(__dirname, 'files');
-const newDirectory = process.argv[3] ? path.join(__dirname, process.argv[3]) : path.join(__dirname, 'newFiles');
+program.parse(process.argv);
+
+const oldDirectory = program.folder;
+const newDirectory = program.output
 
 const watcher = new Watcher(() => {
   console.log('Sorting complete. We can remove source folder');
-  if (process.argv[4] === 'delete') {
+  if (program.delete) {
     deleteDir();
   }
 });
+
+if (!fs.existsSync(oldDirectory)) {
+  errorHandler(`Not found source folder: ${oldDirectory}`);
+}
 
 if (!fs.existsSync(newDirectory)) {
   fs.mkdirSync(newDirectory);
@@ -31,7 +39,8 @@ const moveFile = (dir, file) => {
   watcher.startProccess(dir)
   fs.copyFile(oldPath, newPath, err => {
     if (err) {
-      console.log(err);
+      errorHandler(err);
+      return;
     }
     watcher.endProccess(dir)
   });
@@ -42,7 +51,8 @@ const readDir = (dir) => {
   watcher.startProccess(dir)
   fs.readdir(dir, (err, files) => {
     if (err) {
-      console.log(err);
+      errorHandler(err);
+      return;
     }
 
     for (const item of files) {
@@ -60,8 +70,13 @@ const readDir = (dir) => {
 };
 
 const deleteDir = () => {
-  fs.rmdirSync(oldDirectory, {
+  fs.rmdir(oldDirectory, {
     recursive: true
+  }, err => {
+    if (err) {
+      errorHandler(err);
+      return;
+    }
   });
 };
 
